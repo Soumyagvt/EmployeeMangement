@@ -1,25 +1,46 @@
 package com.ems.dao;
-import com.ems.model.User;
+
+import com.ems.models.User;
+import com.ems.utils.DBConnection;
+
 import java.sql.*;
+
 public class UserDAO {
-    public User authenticate(String username, String password) {
-        String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
-        try (Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, username);
-            stmt.setString(2, password);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return new User(rs.getInt("id"), rs.getString("username"), rs.getString("password"), rs.getString("role"));
-        } catch (SQLException e) { e.printStackTrace(); }
+
+    public User findByUsername(String username) {
+        String sql = "SELECT * FROM users WHERE username = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                User u = new User();
+                u.setId(rs.getInt("id"));
+                u.setUsername(rs.getString("username"));
+                u.setPassword(rs.getString("password"));
+                u.setRole(rs.getString("role"));
+                int linked = rs.getInt("linked_id");
+                if (rs.wasNull()) u.setLinkedId(null); else u.setLinkedId(linked);
+                return u;
+            }
+        } catch (SQLException e) {
+            System.err.println("UserDAO.findByUsername: " + e.getMessage());
+        }
         return null;
     }
 
-    public void addUser(User user) {
-        String sql = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)";
-        try (Connection conn = DBConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, user.getUsername());
-            stmt.setString(2, user.getPassword());
-            stmt.setString(3, user.getRole());
-            stmt.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
+    public boolean createUser(String username, String password, String role, Integer linkedId) {
+        String sql = "INSERT INTO users (username, password, role, linked_id) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, password);
+            ps.setString(3, role);
+            if (linkedId == null) ps.setNull(4, Types.INTEGER); else ps.setInt(4, linkedId);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.err.println("UserDAO.createUser: " + e.getMessage());
+            return false;
+        }
     }
 }
